@@ -1,101 +1,236 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useRef, useEffect } from 'react'
+import { Button } from "@/app/components/ui/button"
+import { Input } from "@/app/components/ui/input"
+import { Card, CardContent } from "@/app/components/ui/card"
+import { ScrollArea } from "@/app/components/ui/scroll-area"
+import { Upload, Trash2, Send, FileText } from "lucide-react"
+
+interface Document {
+  id: string
+  name: string
+}
+
+type Message = {
+  role: 'user' | 'bot';
+  content: string;
+};
+
+export default function RAGChatbot() {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'bot', content: "Hello! I'm your AI assistant. How can I help you today?" }
+  ])
+  const [input, setInput] = useState('')
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [sidebarWidth, setSidebarWidth] = useState(300)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      const newWidth = e.clientX
+      if (newWidth > 200 && newWidth < window.innerWidth - 400) {
+        setSidebarWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [])
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch('/api/minio')
+      if (response.ok) {
+        const data = await response.json()
+        setDocuments(data.map((doc: string) => ({ id: doc, name: doc })))
+      } else {
+        console.error('Failed to fetch documents')
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!input.trim()) return
+
+    const newMessages: Message[] = [...messages, { role: 'user', content: input }]
+    setMessages(newMessages)
+    setInput('')
+
+    // Simulating API call
+    setTimeout(() => {
+      setMessages([...newMessages, { role: 'bot', content: "I've received your message. How can I assist you further?" }])
+    }, 1000)
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') {
+      alert('Please upload a PDF file.')
+      return
+    }
+    setSelectedFile(file);
+    console.log('File selected:', file);
+  };
+
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (selectedFile) {
+      setIsUploading(true);
+      console.log('Uploading file:', selectedFile);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const response = await fetch('/api/minio', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          console.log('File uploaded successfully');
+          setSelectedFile(null);
+          fetchDocuments();
+        } else {
+          const errorText = await response.text();
+          console.error('File upload failed:', errorText);
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleFileDelete = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/minio?filename=${documentId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setDocuments(documents.filter(doc => doc.id !== documentId));
+      } else {
+        console.error('Failed to delete document');
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    }
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div className="flex h-screen bg-gray-100">
+      <div 
+        ref={sidebarRef}
+        className="bg-white border-r relative"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Uploaded Documents</h2>
+          <div className="mb-4 flex items-center space-x-2">
+            <Input
+              ref={fileInputRef}
+              id="file-upload"
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <Button onClick={handleButtonClick} variant="outline">
+              Select PDF
+            </Button>
+            {selectedFile && !isUploading && (
+              <Button onClick={handleFileUpload}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </Button>
+            )}
+          </div>
+          {selectedFile && (
+            <div className="mt-2 text-sm text-gray-600">
+              Selected file: {selectedFile.name}
+            </div>
+          )}
+          <ScrollArea className="h-[calc(100vh-12rem)]">
+            {documents.map((doc) => (
+              <div key={doc.id} className="flex justify-between items-center mb-2 p-2 bg-gray-50 rounded">
+                <div className="flex items-center">
+                  <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                  <span className="truncate">{doc.name}</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => handleFileDelete(doc.id)}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+            ))}
+          </ScrollArea>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <div 
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-gray-300 hover:bg-gray-400"
+          onMouseDown={() => setIsDragging(true)}
+        />
+      </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b p-4">
+          <h1 className="text-2xl font-bold">RAG Chatbot</h1>
+        </header>
+        <main className="flex-1 overflow-hidden">
+          <Card className="h-full flex flex-col m-4">
+            <CardContent className="flex-1 overflow-hidden flex flex-col p-4">
+              <ScrollArea className="flex-1 pr-4">
+                {messages.map((message, index) => (
+                  <div key={index} className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <span className={`inline-block p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                      {message.content}
+                    </span>
+                  </div>
+                ))}
+              </ScrollArea>
+              <div className="pt-4 border-t">
+                <div className="flex space-x-2">
+                  <Input
+                    type="text"
+                    placeholder="Type your message..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  />
+                  <Button onClick={handleSend}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     </div>
-  );
+  )
 }
