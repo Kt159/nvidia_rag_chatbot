@@ -63,6 +63,7 @@ export default function RAGChatbot() {
       const response = await fetch('/api/minio')
       if (response.ok) {
         const data = await response.json()
+        console.log(data)
         setDocuments(data.map((doc: string) => ({ id: doc, name: doc })))
       } else {
         console.error('Failed to fetch documents')
@@ -72,6 +73,7 @@ export default function RAGChatbot() {
     }
   }
 
+
   const handleSend = async () => {
     if (!input.trim()) return
 
@@ -79,11 +81,30 @@ export default function RAGChatbot() {
     setMessages(newMessages)
     setInput('')
 
-    // Simulating API call
-    setTimeout(() => {
-      setMessages([...newMessages, { role: 'bot', content: "I've received your message. How can I assist you further?" }])
-    }, 1000)
-  }
+    try {
+        // Make an API call FastAPI backend with the user's query
+        const response = await fetch('http://127.0.0.1:8000/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query: input  // Send the user's message as the query
+            }),
+        });
+
+        // Parse the response from FastAPI
+        const data = await response.json();
+
+        // Update the messages state with the bot's response
+        setMessages([...newMessages, { role: 'bot', content: data.response }]);
+
+    } catch (error) {
+        console.error('Error sending message to backend:', error);
+        setMessages([...newMessages, { role: 'bot', content: 'Something went wrong. Please try again later.' }]);
+    }
+}
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -115,9 +136,24 @@ export default function RAGChatbot() {
         });
 
         if (response.ok) {
-          console.log('File uploaded successfully');
-          setSelectedFile(null);
-          fetchDocuments();
+          const filePath = await response.json(); 
+          const fileName = filePath.file_name;
+          // Trigger indexing on the backend
+          if (!fileName) {
+            console.error('Failed to get file name from response:', filePath);
+            return;
+          }
+          const indexResponse = await fetch(`http://127.0.0.1:8000/index?file_name=${encodeURIComponent(fileName)}`, {
+            method: 'POST',
+          });
+  
+          if (indexResponse.ok) {
+            console.log('File indexing....');
+            fetchDocuments();
+          } else {
+            const errorText = await indexResponse.text();
+            console.error('Indexing failed:', errorText);
+          }
         } else {
           const errorText = await response.text();
           console.error('File upload failed:', errorText);
@@ -144,6 +180,38 @@ export default function RAGChatbot() {
       console.error('Error deleting document:', error);
     }
   }
+
+  const handleUserInput = async(userInput: string) => {
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: 'user', content: userInput },
+    ]);
+  
+    try {
+      // Send the user input as a query to backend query pipeline
+      const response = await fetch(`http://127.0.0.1:8000/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: userInput,
+      });
+  
+      if (response.ok) {
+        const reply = await response.text();
+        // Add the chatbot's response to messages
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: 'bot', content: reply },
+        ]);
+      } else {
+        const errorText = await response.text();
+        console.error('Query failed:', errorText);
+      }
+    } catch (error) {
+      console.error('Error querying backend:', error);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
