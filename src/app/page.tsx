@@ -93,6 +93,16 @@ export default function RAGChatbot() {
             }),
         });
 
+        if (!response.ok) {
+          if (response.status === 500) {
+              console.error("Please index documents before querying.");
+              setMessages([...newMessages, { role: 'bot', content: "Please index documents before querying." }]);
+          } else {
+              console.error("Error:", response);
+          }
+          return;
+      }
+
         // Parse the response from FastAPI
         const data = await response.json();
 
@@ -148,7 +158,7 @@ export default function RAGChatbot() {
           });
   
           if (indexResponse.ok) {
-            console.log('File indexing....');
+            console.log('Indexed:', fileName);
             fetchDocuments();
           } else {
             const errorText = await indexResponse.text();
@@ -166,52 +176,64 @@ export default function RAGChatbot() {
     }
   };
 
-  const handleFileDelete = async (documentId: string) => {
+  const handleFileDelete = async (file_name: string) => {
     try {
-      const response = await fetch(`/api/minio?filename=${documentId}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setDocuments(documents.filter(doc => doc.id !== documentId));
-      } else {
-        console.error('Failed to delete document');
-      }
-    } catch (error) {
-      console.error('Error deleting document:', error);
-    }
-  }
-
-  const handleUserInput = async(userInput: string) => {
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { role: 'user', content: userInput },
-    ]);
-  
-    try {
-      // Send the user input as a query to backend query pipeline
-      const response = await fetch(`http://127.0.0.1:8000/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: userInput,
-      });
-  
-      if (response.ok) {
-        const reply = await response.text();
-        // Add the chatbot's response to messages
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { role: 'bot', content: reply },
+        // Execute both deletion requests in parallel
+        const [minio_response, milvus_response] = await Promise.all([
+            fetch(`/api/minio?filename=${file_name}`, {
+                method: 'DELETE',
+            }),
+            fetch(`http://127.0.0.1:8000/delete?file_name=${encodeURIComponent(file_name)}`, {
+                method: 'DELETE',
+            })
         ]);
-      } else {
-        const errorText = await response.text();
-        console.error('Query failed:', errorText);
-      }
+
+        if (minio_response.ok && milvus_response.ok) {
+            // Update state only if both deletions succeeded
+            setDocuments((documents) => documents.filter(doc => doc.id !== file_name));
+            console.log(`Successfully deleted ${file_name} from MinIO and Milvus`);
+        } else {
+            // Log specific errors
+            if (!minio_response.ok) console.error('Failed to delete document from MinIO');
+            if (!milvus_response.ok) console.error('Failed to delete document from Milvus');
+        }
     } catch (error) {
-      console.error('Error querying backend:', error);
+        console.error('Error deleting document:', error);
     }
-  };
+};
+
+  // const handleUserInput = async(userInput: string) => {
+  //   setMessages((prevMessages) => [
+  //     ...prevMessages,
+  //     { role: 'user', content: userInput },
+  //   ]);
+  
+  //   try {
+  //     // Send the user input as a query to backend query pipeline
+  //     const response = await fetch(`http://127.0.0.1:8000/query`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'text/plain',
+  //       },
+  //       body: userInput,
+  //     });
+  //     console.log('Query response:', response);
+  //     if (response.ok) {
+  //       const reply = await response.text();
+  //       // Add the chatbot's response to messages
+  //       setMessages((prevMessages) => [
+  //         ...prevMessages,
+  //         { role: 'bot', content: reply },
+  //       ]);
+  //     } else {
+  //       const errorText = await response.text();
+  //       console.error('Query failed:', errorText);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error querying backend:', error);
+  //     //Inform user about error
+  //   }
+  // };
 
   return (
     <div className="flex h-screen bg-gray-100">

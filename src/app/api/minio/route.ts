@@ -64,14 +64,14 @@ export async function GET() {
 // DELETE: Delete a specific document from MinIO
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const documentId = searchParams.get('filename');
+  const fileName = searchParams.get('filename');
 
-  if (!documentId) {
+  if (!fileName) {
     return NextResponse.json({ message: 'Filename is required' }, { status: 400 });
   }
 
   try {
-    await minioClient.removeObject(bucketName, documentId);
+    await minioClient.removeObject(bucketName, fileName);
     return NextResponse.json({ message: 'Document deleted successfully' }, { status: 200 });
   } catch (error) {
     const err = error as Error;
