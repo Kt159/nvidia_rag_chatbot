@@ -60,7 +60,7 @@ export default function RAGChatbot() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/api/minio')
+      const response = await fetch('http://127.0.0.1:8000/list_files')
       if (response.ok) {
         const data = await response.json()
         console.log(data)
@@ -140,7 +140,7 @@ export default function RAGChatbot() {
       formData.append('file', selectedFile);
 
       try {
-        const response = await fetch('/api/minio', {
+        const response = await fetch('http://127.0.0.1:8000/upload_file', {
           method: 'POST',
           body: formData,
         });
@@ -180,10 +180,10 @@ export default function RAGChatbot() {
     try {
         // Execute both deletion requests in parallel
         const [minio_response, milvus_response] = await Promise.all([
-            fetch(`/api/minio?filename=${file_name}`, {
+            fetch(`http://127.0.0.1:8000/delete_minio?filename=${file_name}`, {
                 method: 'DELETE',
             }),
-            fetch(`http://127.0.0.1:8000/delete?file_name=${encodeURIComponent(file_name)}`, {
+            fetch(`http://127.0.0.1:8000/delete_milvus?file_name=${encodeURIComponent(file_name)}`, {
                 method: 'DELETE',
             })
         ]);
