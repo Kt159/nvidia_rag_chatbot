@@ -1,23 +1,17 @@
-import { Client } from 'minio';
+// import { Client } from 'minio';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Initialize MinIO client
-// const minioClient = new Client({
-//   endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-//   port: 9000,
-//   useSSL: false,
-//   accessKey: process.env.MINIO_ACCESS_KEY|| 'admin',
-//   secretKey: process.env.MINIO_SECRET_KEY || 'password',
-// });
+const Minio = require('minio');
+const [endPoint, port] = (process.env.MINIO_ENDPOINT || 'localhost:9000').split(':');
 
-const minioClient = new Client({
-  endPoint: 'localhost',
-  port: 9000,
-  useSSL: false,
-  accessKey: 'admin',
-  secretKey: 'password',
+// Create a MinIO client
+const minioClient = new Minio.Client({
+    endPoint: endPoint,      
+    port: parseInt(port),    
+    useSSL: false,                             
+    accessKey: process.env.MINIO_ACCESS_KEY,   // MinIO access key
+    secretKey: process.env.MINIO_SECRET_KEY    // MinIO secret key
 });
-
 
 const bucketName: string = process.env.MINIO_BUCKET_NAME || 'default-bucket-name';
 

@@ -202,39 +202,6 @@ export default function RAGChatbot() {
     }
 };
 
-  // const handleUserInput = async(userInput: string) => {
-  //   setMessages((prevMessages) => [
-  //     ...prevMessages,
-  //     { role: 'user', content: userInput },
-  //   ]);
-  
-  //   try {
-  //     // Send the user input as a query to backend query pipeline
-  //     const response = await fetch(`http://127.0.0.1:8000/query`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'text/plain',
-  //       },
-  //       body: userInput,
-  //     });
-  //     console.log('Query response:', response);
-  //     if (response.ok) {
-  //       const reply = await response.text();
-  //       // Add the chatbot's response to messages
-  //       setMessages((prevMessages) => [
-  //         ...prevMessages,
-  //         { role: 'bot', content: reply },
-  //       ]);
-  //     } else {
-  //       const errorText = await response.text();
-  //       console.error('Query failed:', errorText);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error querying backend:', error);
-  //     //Inform user about error
-  //   }
-  // };
-
   return (
     <div className="flex h-screen bg-gray-100">
       <div 
