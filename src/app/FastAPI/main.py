@@ -10,7 +10,6 @@ import uvicorn
 from minio import Minio
 from llama_index.core import Settings
 
-
 app = FastAPI()
 
 app.add_middleware(
@@ -29,16 +28,15 @@ class Document(BaseModel):
 class QueryRequest(BaseModel):
     query: str
 
+# Initialize MinIO client
 minio_client = Minio(
-    endpoint=os.getenv("MINIO_ENDPOINT"),  # MinIO endpoint (e.g., 'localhost:9000')
-    access_key=os.getenv("MINIO_ACCESS_KEY"),  # MinIO access key
-    secret_key=os.getenv("MINIO_SECRET_KEY"),  # MinIO secret key
-    secure=False  # Disable SSL for local MinIO; set to True for HTTPS endpoints
+    "localhost:9000",  # MinIO URL
+    access_key="minioadmin",  # MinIO access key
+    secret_key="minioadmin",  # MinIO secret key
+    secure=False  # Set to True if using https
 )
 
 bucket_name = os.getenv("MINIO_BUCKET_NAME")  # MinIO bucket name
-
-# Ensure the bucket exists
 if not minio_client.bucket_exists(bucket_name):
     minio_client.make_bucket(bucket_name)
 
@@ -68,9 +66,12 @@ async def list_files():
     List all objects in the MinIO bucket.
     """
     try:
+        if not minio_client.bucket_exists(bucket_name):
+            return JSONResponse(content={"message": "Bucket does not exist"}, status_code=404)
         objects = minio_client.list_objects(bucket_name, recursive=True)
         documents = [obj.object_name for obj in objects]
         return JSONResponse(content=documents)
+    
     except Exception as e:
         return JSONResponse(content={"message": "Error fetching documents", "error": str(e)}, status_code=500)
 

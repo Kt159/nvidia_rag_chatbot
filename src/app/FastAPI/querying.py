@@ -19,7 +19,6 @@ from pymilvus import connections, utility
 
 
 load_dotenv()
-os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
 
 class Query_Pipeline():
 
@@ -33,7 +32,7 @@ class Query_Pipeline():
     """
     def __init__(self):
         self.model_host = os.getenv("MODEL_HOST", "AZURE")
-        self.milvus_host_IP = os.getenv("MILVUS_HOST","milvus-standalone")
+        self.milvus_host_IP = os.getenv("MILVUS_HOST","localhost")
         self.milvus_port = os.getenv("MILVUS_PORT", 19530)
         self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "test")
         self.embedder = self.initialize_embedder()  
@@ -50,9 +49,9 @@ class Query_Pipeline():
             embedder = AzureOpenAIEmbedding(
                 model=os.getenv('EMBEDDING_MODEL'),
                 engine=os.getenv('EMBEDDING_MODEL'),
-                api_version=os.getenv('API_VERSION'),
-                azure_endpoint=os.getenv('ENDPOINT'),
-                api_key=os.getenv('API_KEY')
+                api_version=os.getenv('LLM_API_VERSION'),
+                azure_endpoint=os.getenv('LLM_ENDPOINT'),
+                api_key=os.getenv('LLM_API_KEY')
             )  
 
         return embedder
@@ -95,12 +94,13 @@ class Query_Pipeline():
         if self.model_host == "AZURE":
             llm_model = AzureOpenAI(model=os.getenv('LLM_MODEL'),
                                     engine=os.getenv('LLM_MODEL'),
-                                    api_version=os.getenv('API_VERSION'),
-                                    azure_endpoint=os.getenv('ENDPOINT'),
-                                    api_key=os.getenv('API_KEY')
+                                    api_version=os.getenv('LLM_API_VERSION'),
+                                    azure_endpoint=os.getenv('LLM_ENDPOINT'),
+                                    api_key=os.getenv('LLM_API_KEY')
                                     )
 
         elif self.model_host == "NVIDIA":
+            os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
             llm_model = NVIDIA(model=os.getenv('LLM_MODEL'))
 
         else:

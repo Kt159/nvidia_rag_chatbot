@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/app/components/ui/card"
 import { ScrollArea } from "@/app/components/ui/scroll-area"
 import { Upload, Trash2, Send, FileText } from "lucide-react"
 
+
 interface Document {
   id: string
   name: string

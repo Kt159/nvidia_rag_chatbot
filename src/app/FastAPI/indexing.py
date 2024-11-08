@@ -17,8 +17,6 @@ from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
 
 load_dotenv()
-os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
-
 
 class Indexing_Pipeline():
 
@@ -32,14 +30,14 @@ class Indexing_Pipeline():
         self.embed_model = os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
         self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "test")
         self.milvus_port = os.getenv("MILVUS_PORT", 19530)
-        self.milvus_host_IP = os.getenv("MILVUS_HOST", "milvus-standalone")
+        self.milvus_host_IP = os.getenv("MILVUS_HOST", "localhost")
         self.model_host = os.getenv("MODEL_HOST", "AZURE")
         self.embedder = self.initialize_embedder()
-        self.minio_bucket = os.getenv("MINIO_BUCKET_NAME", "test")
+        self.minio_bucket = os.getenv("MINIO_BUCKET_NAME", "a-bucket")
         self.minio_client = Minio(
-                                endpoint=os.getenv("MINIO_ENDPOINT",9000),  # Ensure this is 9000 for non-SSL
-                                access_key=os.getenv("MINIO_ACCESS_KEY", "admin"),
-                                secret_key=os.getenv("MINIO_SECRET_KEY", "password"),
+                                endpoint="localhost:9000",
+                                access_key='minioadmin',
+                                secret_key='minioadmin',
                                 secure=False  
                             )
         self.milvus_store = None
@@ -83,6 +81,7 @@ class Indexing_Pipeline():
         """
 
         if self.model_host == "NVIDIA":
+            os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
             embedder = NVIDIAEmbedding(
                 model=os.getenv('EMBEDDING_MODEL'),
                 truncate="END")
@@ -91,10 +90,13 @@ class Indexing_Pipeline():
             embedder = AzureOpenAIEmbedding(
                 model=os.getenv('EMBEDDING_MODEL'),
                 engine=os.getenv('EMBEDDING_MODEL'),
-                api_version=os.getenv('API_VERSION'),
-                azure_endpoint=os.getenv('ENDPOINT'),
-                api_key=os.getenv('API_KEY')
-            )  
+                api_version=os.getenv('LLM_API_VERSION'),
+                azure_endpoint=os.getenv('LLM_ENDPOINT'),
+                api_key=os.getenv('LLM_API_KEY')
+            )
+
+        else:
+            raise Exception("Model host not supported. Please choose NVIDIA or AZURE.")    
 
         return embedder
 
@@ -169,9 +171,11 @@ class Indexing_Pipeline():
         except Exception as e:
             print(f"Error deleting collection: {e}")
 
-# ERROR HERE
+
     def delete_milvus_indexes_using_filename(self, filename: str):
-        # Connect to Milvus
+        """
+        Deletes the indexes from the Milvus store based on the filename metadata
+        """
         connections.connect(host=self.milvus_host_IP, port=self.milvus_port)
         
         try:
@@ -181,7 +185,8 @@ class Indexing_Pipeline():
             # Use a filter expression to delete all entries with the specific filename metadata
             expr = f"file_name == '{filename}'"
             collection.delete(expr)
-            
+            collection.compact()
+        
             print(f"Deleted indexes for {filename} from Milvus store")
             
             # Success message for FastAPI response
