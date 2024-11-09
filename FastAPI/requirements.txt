@@ -1,0 +1,14 @@
+fastapi==0.115.4
+llama_index==0.11.22
+minio==7.2.10
+pydantic==2.9.2
+pymilvus==2.4.9
+PyPDF2==3.0.1
+python-dotenv==1.0.1
+uvicorn==0.32.0
+llama-index-embeddings-nvidia==0.2.5
+llama-index-vector-stores-milvus==0.2.7
+llama-index-embeddings-azure-openai==0.2.5
+llama-index-llms-nvidia==0.2.7
+python-multipart==0.0.17
+torch==2.5.1
