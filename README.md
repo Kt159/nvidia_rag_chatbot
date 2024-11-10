@@ -16,12 +16,12 @@
      |          |── layout.tsx
      |          |── page.tsx 
      |
-     |── FastAPI                  # FastAPI backend service
-     |     |── main.py            # Backend routes hosted on uvicorn
+     |── FastAPI                  # FastAPI backend service           
      |     |── indexing.py        # Indexing pipeline (NVIDIA NIM Microservices --> Embedding model: nvidia/nv-embedqa-e5-v5)  
      |     |── querying.py        # Query pipeline    (NVIDIA NIM Microservices --> LLM: meta/llama3-8b-instruct)
      |     |── requirements.txt   # Dependencies needed for FastAPI service
      |
+     |── main.py                  # Backend routes hosted on uvicorn
      |── data                     # Test document to upload and test out chatbot (you can upload your own documents also)
      |── docker-compose.yml       # Run milvus/minio docker images
      |── .env                     # Env file for project (See template provided)
@@ -47,7 +47,13 @@
 7. Retrieved chunks are passed into Large Langugage Model which answers the query via chatbot
 
 
-
+## Intructions to run chatbot
+1. Clone repo to local device
+2. Input custom parameters in .env file (NVIDIA API key etc.)
+3. Set up venv and install dependencies for FastAPI (`pip install -r "FastAPI/requirements.txt"`) 
+4. Set up local milvus/minio store (`docker-compose up`)
+5. Start FastAPI server (`uvicorn main:app --reload`)
+6. Upload and query documents on ([Vercel Deployment](https://nvidia-rag-chatbot.vercel.app/))
 
 
 
