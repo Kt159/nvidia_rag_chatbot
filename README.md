@@ -47,7 +47,7 @@
 7. Retrieved chunks are passed into Large Langugage Model which answers the query via chatbot
 
 
-## Intructions to run chatbot
+## Instructions to run chatbot
 1. Clone repo to local device
 2. Input custom parameters in .env file (NVIDIA API key etc.)
 3. Set up venv and install dependencies for FastAPI (`pip install -r "FastAPI/requirements.txt"`) 
