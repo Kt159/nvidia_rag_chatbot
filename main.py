@@ -2,8 +2,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from indexing import Indexing_Pipeline 
-from querying import Query_Pipeline 
+from FastAPI.indexing import Indexing_Pipeline 
+from FastAPI.querying import Query_Pipeline 
 import os
 import io
 import uvicorn
