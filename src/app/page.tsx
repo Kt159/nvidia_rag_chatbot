@@ -20,7 +20,7 @@ type Message = {
 
 export default function RAGChatbot() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', content: "Hello! I'm your AI assistant. How can I help you today?" }
+    { role: 'bot', content: "Hi there! I'm your AI assistant, ready to help. 😊 Simply upload your PDF documents, and feel free to ask me anything about them. Let's get started!"}
   ])
   const [input, setInput] = useState('')
   const [documents, setDocuments] = useState<Document[]>([])

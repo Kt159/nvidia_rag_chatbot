@@ -34,7 +34,6 @@ class Query_Pipeline():
         self.model_host = os.getenv("MODEL_HOST", "NVIDIA")
         self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "test")
         self.embedder = self.initialize_embedder()  
-        self.milvus_store = self.connect_to_milvus_store()
         self.llm_model = self.initialize_llm_model()
 
     def initialize_embedder(self):
@@ -75,7 +74,8 @@ class Query_Pipeline():
             milvus_store = MilvusVectorStore(
                 collection_name=self.collection_name,
                 uri=f"http://{milvus_host}:{milvus_port}/",
-                overwrite=False  # Reuse the existing collection without overwriting
+                overwrite=False,
+                consistency_level="Strong"
             )
             
             return milvus_store
@@ -84,7 +84,7 @@ class Query_Pipeline():
             raise Exception(f"Milvus collection '{self.collection_name}' does not exist. Please index documents before querying.")
         
     def initalize_retriever(self):
-        milvus_store = self.milvus_store
+        milvus_store = self.connect_to_milvus_store()
         index = VectorStoreIndex.from_vector_store(vector_store=milvus_store, embed_model=self.embedder)
         retriever = index.as_retriever(
             similarity_top_k=5,
@@ -121,15 +121,15 @@ class Query_Pipeline():
             response: Response to query
         """
 
-        qa_prompt = PromptTemplate( "You are a helpful chatbot assisting a user with a question.\n"
-                                "If the user asks a question that you do not have the context to, say I don't have the required context.\n"
-                                "Context information is below.\n"
+        qa_prompt = PromptTemplate( "You are a chatbot assisting a user with a question specific to the provided context. Keep your answers concise and straight to the point.\n"
+                                "The context below is retreived from the user's documents. You SHOULD ONLY USE THE USER'S CONTEXT BELOW.\n"
                                 "---------------------\n"
-                                "{context_str}\n"
+                                "User's context: {context_str}\n"
                                 "---------------------\n"
-                                "Given the context information and not prior knowledge, "
-                                "answer the query.\n"
+                                "If the user's context is not provided or is irrelevant to the query, say I don't have the required context, please upload documents on the left.\n"
+                                "DO NOT USE YOUR OWN PRIOR KNOWLEDGE.\n"
                                 "Query: {query_str}\n"
+                                "You can help the user by formatting your response if the response is long.\n"
                                 "Answer: "
                                 )
         
@@ -169,7 +169,7 @@ class RAGStringQueryEngine(CustomQueryEngine, BaseModel):
         if isinstance(self.llm, NVIDIA):
             # NVIDIA chat model requires messages in a specific format
             messages = [
-                ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful assistant."),
+                ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful assistant. If your output is very long, return the response in shorter point forms"),
                 ChatMessage(role=MessageRole.USER, content=formatted_prompt),
             ]
             response = self.llm.chat(messages)

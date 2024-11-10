@@ -1,17 +1,17 @@
 from dotenv import load_dotenv
-from typing import List, Optional
+from typing import List
 import os
 import PyPDF2
 from io import BytesIO
 import torch
 from llama_index.embeddings.nvidia import NVIDIAEmbedding
 from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, Document
+from llama_index.core import VectorStoreIndex, StorageContext, Document
 from llama_index.core.schema import BaseNode
 from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from minio import Minio
-from pymilvus import Collection, connections, utility
+from pymilvus import Collection, CollectionSchema, FieldSchema, DataType, connections, utility
 
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
@@ -135,7 +135,7 @@ class Indexing_Pipeline():
             return f"Milvus store already initialized at {self.milvus_store.uri}, skipping initialization"
         
         connections.connect(host=self.milvus_host_IP, port=self.milvus_port)
-        
+
         # Check if the collection already exists
         if utility.has_collection(self.collection_name):
             print(f"Milvus collection '{self.collection_name}' already exists. Reusing the existing collection.")
@@ -147,14 +147,29 @@ class Indexing_Pipeline():
         else:
             # Initialize a new collection if it does not exist
             print(f"Milvus collection '{self.collection_name}' does not exist. Initializing a new collection.")
+
+            fields = [
+                FieldSchema(name="id", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=65535),
+                FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1024),
+                FieldSchema(name="file_name", dtype=DataType.VARCHAR, max_length=65535)
+                ]
+
+            # Define the collection schema
+            schema = CollectionSchema(fields=fields)
+            collection = Collection(name="test", schema=schema)
+            print("Collection 'test' created successfully.")
+
             self.milvus_store = MilvusVectorStore(
-                dim=dim,
-                collection_name=self.collection_name,
+                dim=1024,
+                collection_name='test',
                 uri=f"http://{self.milvus_host_IP}:{self.milvus_port}/",
-                overwrite=True  
+                overwrite=True, 
+                consistency_level='Strong'
             )
         
-        print(f"Initialized Milvus store at {self.milvus_store.uri} with {self.milvus_store.dim} dimensions")
+            print (f"Initialized Milvus store at {self.milvus_store.uri} with {self.milvus_store.dim} dimensions and file_name fields")
+
+            return
         
    
     def reset_milvus_store(self):
@@ -219,7 +234,9 @@ class Indexing_Pipeline():
 
         # Add documents (or chunks) to the index
         index = VectorStoreIndex.from_documents(
-            [Document(text=chunk.text) for chunk in chunks], storage_context=storage_context, embed_model=self.embedder
+            [Document(text=chunk.text, metadata={"file_name": chunk.metadata["file_name"]}) for chunk in chunks],
+            storage_context=storage_context,
+            embed_model=self.embedder
         )
 
         print(f"Indexed {len(chunks)} chunks into Milvus.")
