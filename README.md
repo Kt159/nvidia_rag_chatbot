@@ -22,6 +22,7 @@
      |     |── querying.py        # Query pipeline    (NVIDIA NIM Microservices --> LLM: meta/llama3-8b-instruct)
      |     |── requirements.txt   # Dependencies needed for FastAPI service
      |
+     |── data                     # Test document to upload and test out chatbot (you can upload your own documents also)
      |── docker-compose.yml       # Run milvus/minio docker images
      |── .env                     # Env file for project (See template provided)
      |── package.json             # Dependencies needed for Next.js application
