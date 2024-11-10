@@ -1,4 +1,4 @@
-## RAG-Chatbot built using NVIDIA NIM Microservices and LlamaIndex Framework
+# RAG-Chatbot built using NVIDIA NIM Microservices and LlamaIndex Framework
 --------------------------------------------------------------------------------
 ```plaintext
 |── root
@@ -28,7 +28,9 @@
      |── README.md
 ```
 
-### Project Architecture Overview
+## Project Architecture Overview
+
+### Indexing Documents:
 ![image](https://github.com/user-attachments/assets/3e91f1c2-5987-4b48-bd59-06d81a889e3a)
 
 1. User uploads document on frontend chatbot
@@ -36,7 +38,9 @@
 3. Document enters indexing pipeline where it is chunked and embedded into vectors
 4. Vectors are stored in Milvus Vector Store
 
+### Querying Documents:
 ![image](https://github.com/user-attachments/assets/39893436-81b7-41a0-960e-40519ca87b4f)
+
 5. User queries the chatbot
 6. Query enters query pipeline where it is embedded and used to retreive chunks from Milvus
 7. Retrieved chunks are passed into Large Langugage Model which answers the query via chatbot
