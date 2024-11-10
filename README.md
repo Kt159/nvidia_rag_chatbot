@@ -1,30 +1,31 @@
 ## RAG-Chatbot built using NVIDIA NIM Microservices and LlamaIndex Framework
 --------------------------------------------------------------------------------
 ```plaintext
-├── src                     
-|   |── app 
-|          |── components\ui 
-|          |   |── button.tsx           
-|          |   |── card.tsx           
-|          |   |── input.tsx                
-|          |   |── scroll-area.tsx                
-|          |   
-|          |── FastAPI                # FastAPI backend service
-|          |   |── main.py            # Backend routes hosted on uvicorn
-|          |   |── indexing.py        # Indexing pipeline (NVIDIA NIM Microservices --> NV-Embed-QA)  
-|          |   |── querying.py        # Query pipeline    (NVIDIA NIM Microservices --> NV-Embed-QA + mistralai/mistral-7b-instruct-v0.2) 
-|          |   |── Dockerfile         # Dockerfile for FastAPI service
-|          |   |── requirements.txt   # Dependencies needed for FastAPI service
-|
-|── fonts    
-|── layout.tsx
-|── page.tsx
-|── Dockerfile                  # Dockerfile for Next.js application
-|── docker-compose.yml          # Docker compose file for easy deployment
-|── package.json                # Dependencies needed for Next.js application
-|
-|── .env                        # Env file for project (See template provided)
-├── README.md                   
+|── root
+     |─── src                     
+     |      |── app 
+     |          |── components/ui 
+     |          |       |── button.tsx           
+     |          |       |── card.tsx           
+     |          |       |── input.tsx                
+     |          |       |── scroll-area.tsx                
+     |          |
+     |          |── fonts
+     |          |── lib
+     |          |── global.css
+     |          |── layout.tsx
+     |          |── page.tsx 
+     |
+     |── FastAPI                  # FastAPI backend service
+     |     |── main.py            # Backend routes hosted on uvicorn
+     |     |── indexing.py        # Indexing pipeline (NVIDIA NIM Microservices --> Embedding model: nvidia/nv-embedqa-e5-v5)  
+     |     |── querying.py        # Query pipeline    (NVIDIA NIM Microservices --> LLM: meta/llama3-8b-instruct)
+     |     |── requirements.txt   # Dependencies needed for FastAPI service
+     |
+     |── docker-compose.yml       # Run milvus/minio docker images
+     |── .env                     # Env file for project (See template provided)
+     |── package.json             # Dependencies needed for Next.js application
+     |── README.md
 ```
 
 ### Project Architecture Overview
@@ -36,6 +37,12 @@
 4. Vectors are stored in Milvus Vector Store
 
 ![image](https://github.com/user-attachments/assets/39893436-81b7-41a0-960e-40519ca87b4f)
-1. User queries the chatbot
-2. Query enters query pipeline where it is embedded and used to retreive chunks from Milvus
-3. Retrieved chunks are passed into Large Langugage Model which answers the query via chatbot
+5. User queries the chatbot
+6. Query enters query pipeline where it is embedded and used to retreive chunks from Milvus
+7. Retrieved chunks are passed into Large Langugage Model which answers the query via chatbot
+
+
+
+
+
+
