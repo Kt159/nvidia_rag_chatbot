@@ -1,12 +1,12 @@
 from dotenv import load_dotenv
+from typing import Union
 import os
 
 from pydantic import BaseModel, Field
 from llama_index.core import PromptTemplate
 from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.core.retrievers import BaseRetriever
-from llama_index.core import get_response_synthesizer
-from llama_index.core.response_synthesizers import BaseSynthesizer
+from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core import VectorStoreIndex
 
 from llama_index.embeddings.nvidia import NVIDIAEmbedding
@@ -31,9 +31,7 @@ class Query_Pipeline():
     
     """
     def __init__(self):
-        self.model_host = os.getenv("MODEL_HOST", "AZURE")
-        self.milvus_host_IP = os.getenv("MILVUS_HOST","localhost")
-        self.milvus_port = os.getenv("MILVUS_PORT", 19530)
+        self.model_host = os.getenv("MODEL_HOST", "NVIDIA")
         self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "test")
         self.embedder = self.initialize_embedder()  
         self.milvus_store = self.connect_to_milvus_store()
@@ -41,8 +39,9 @@ class Query_Pipeline():
 
     def initialize_embedder(self):
         if self.model_host == "NVIDIA":
+            os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
             embedder = NVIDIAEmbedding(
-                model=os.getenv('EMBEDDING_MODEL'),
+                model=os.getenv('EMBEDDING_MODEL', 'nvidia/nv-embedqa-e5-v5'),
                 truncate="END")
 
         elif self.model_host == "AZURE":
@@ -65,14 +64,17 @@ class Query_Pipeline():
         """
         
         # Establish a connection to Milvus
-        connections.connect(host=self.milvus_host_IP, port=self.milvus_port)
+        milvus_host = os.getenv("MILVUS_HOST", "localhost")
+        milvus_port = os.getenv("MILVUS_PORT", 19530)
+
+        connections.connect(host=milvus_host, port=milvus_port)
         
         # Check if the collection already exists
         if utility.has_collection(self.collection_name):
             print(f"Milvus collection '{self.collection_name}' exists. Querying from collection.")
             milvus_store = MilvusVectorStore(
                 collection_name=self.collection_name,
-                uri=f"http://{self.milvus_host_IP}:{self.milvus_port}/",
+                uri=f"http://{milvus_host}:{milvus_port}/",
                 overwrite=False  # Reuse the existing collection without overwriting
             )
             
@@ -83,7 +85,7 @@ class Query_Pipeline():
         
     def initalize_retriever(self):
         milvus_store = self.milvus_store
-        index = VectorStoreIndex.from_vector_store(vector_store=milvus_store)
+        index = VectorStoreIndex.from_vector_store(vector_store=milvus_store, embed_model=self.embedder)
         retriever = index.as_retriever(
             similarity_top_k=5,
         )
@@ -100,7 +102,6 @@ class Query_Pipeline():
                                     )
 
         elif self.model_host == "NVIDIA":
-            os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
             llm_model = NVIDIA(model=os.getenv('LLM_MODEL'))
 
         else:
@@ -133,29 +134,26 @@ class Query_Pipeline():
                                 )
         
         
-        # Set up synthesizer, LLM, and query engine
+        # Set up retriever, LLM, and query engine
         retriever = self.initalize_retriever()
-        synthesizer = get_response_synthesizer(response_mode="compact")
         llm = self.llm_model
 
         query_engine = RAGStringQueryEngine(
             retriever=retriever,
-            response_synthesizer=synthesizer,
             llm=llm,
             qa_prompt=qa_prompt,
         )
 
-        response = query_engine.custom_query(query)
+        response = query_engine.custom_query(query_str=query)
 
         return response
-        
+    
 
 class RAGStringQueryEngine(CustomQueryEngine, BaseModel):
     """Custom RAG String Query Engine."""
-
+    
     retriever: BaseRetriever = Field(...)
-    response_synthesizer: BaseSynthesizer = Field(...)
-    llm: AzureOpenAI = Field(...)
+    llm: Union[NVIDIA, AzureOpenAI] = Field(...)
     qa_prompt: PromptTemplate = Field(...)
 
     def custom_query(self, query_str: str) -> str:
@@ -167,7 +165,18 @@ class RAGStringQueryEngine(CustomQueryEngine, BaseModel):
         
         # Format prompt and query LLM
         formatted_prompt = self.qa_prompt.format(context_str=context_str, query_str=query_str)
-        response = self.llm.complete(prompt=formatted_prompt)
         
-        return str(response)
+        if isinstance(self.llm, NVIDIA):
+            # NVIDIA chat model requires messages in a specific format
+            messages = [
+                ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful assistant."),
+                ChatMessage(role=MessageRole.USER, content=formatted_prompt),
+            ]
+            response = self.llm.chat(messages)
 
+        elif isinstance(self.llm, AzureOpenAI):
+            # AzureOpenAI model can directly handle the prompt
+            response = self.llm.complete(prompt=formatted_prompt)
+     
+        response_text = str(response.content) if hasattr(response, 'content') else str(response)
+        return response_text.replace("assistant: ", "", 1) if response_text.startswith("assistant: ") else response_text

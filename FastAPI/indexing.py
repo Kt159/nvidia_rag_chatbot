@@ -3,7 +3,7 @@ from typing import List, Optional
 import os
 import PyPDF2
 from io import BytesIO
-
+import torch
 from llama_index.embeddings.nvidia import NVIDIAEmbedding
 from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, Document
@@ -26,14 +26,14 @@ class Indexing_Pipeline():
     """
 
     def __init__(self, chunk_size:int = 512):
-        self.chunk_size = chunk_size   #Chunk_Size = 512 is the Token limit for NV-Embed-QA embedding model
-        self.embed_model = os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
+        self.chunk_size = chunk_size  
         self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "test")
         self.milvus_port = os.getenv("MILVUS_PORT", 19530)
         self.milvus_host_IP = os.getenv("MILVUS_HOST", "localhost")
-        self.model_host = os.getenv("MODEL_HOST", "AZURE")
+        self.model_host = os.getenv("MODEL_HOST", "NVIDIA")
         self.embedder = self.initialize_embedder()
-        self.minio_bucket = os.getenv("MINIO_BUCKET_NAME", "a-bucket")
+        self.embedder_dims = os.getenv("EMBEDDING_MODEL_DIMS", 1024)
+        self.minio_bucket = os.getenv("MINIO_BUCKET_NAME", "test")
         self.minio_client = Minio(
                                 endpoint="localhost:9000",
                                 access_key='minioadmin',
@@ -54,8 +54,9 @@ class Indexing_Pipeline():
         """
         documents = []
 
-        for file_name in path:
+        for file_path in path:
             # Fetch the file from MinIO
+            file_name = file_path.split("/")[-1]
             response = self.minio_client.get_object(self.minio_bucket, file_name)
             file_content = response.read()  # Read the file as binary
             
@@ -196,7 +197,6 @@ class Indexing_Pipeline():
             print("Error deleting from Milvus:", e)
             return {"status": "error", "message": str(e)}
         
-    
     def run(self, path: List[str]) -> VectorStoreIndex:
         """
         Runs the indexing pipeline to index the documents
@@ -212,10 +212,7 @@ class Indexing_Pipeline():
 
         # Initialize Milvus store based on the embedding model
         if not self.milvus_store:
-            if self.embed_model == "NV-Embed-QA":
-                self.initialize_milvus_store(dim=512)
-            elif self.embed_model == "text-embedding-ada-002":
-                self.initialize_milvus_store(dim=1536)
+            self.initialize_milvus_store(dim=int(self.embedder_dims))
 
         # Initialize storage context with Milvus vector store
         storage_context = StorageContext.from_defaults(vector_store=self.milvus_store)

@@ -16,9 +16,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+bucket_name = os.getenv("MINIO_BUCKET_NAME")  # MinIO bucket name
 
 # Define Pydantic models for request validation
 class Document(BaseModel):
@@ -35,10 +36,6 @@ minio_client = Minio(
     secret_key="minioadmin",  # MinIO secret key
     secure=False  # Set to True if using https
 )
-
-bucket_name = os.getenv("MINIO_BUCKET_NAME")  # MinIO bucket name
-if not minio_client.bucket_exists(bucket_name):
-    minio_client.make_bucket(bucket_name)
 
 
 @app.post("/upload_file")
@@ -67,7 +64,8 @@ async def list_files():
     """
     try:
         if not minio_client.bucket_exists(bucket_name):
-            return JSONResponse(content={"message": "Bucket does not exist"}, status_code=404)
+            minio_client.make_bucket(bucket_name)
+    
         objects = minio_client.list_objects(bucket_name, recursive=True)
         documents = [obj.object_name for obj in objects]
         return JSONResponse(content=documents)
