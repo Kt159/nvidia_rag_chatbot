@@ -56,4 +56,5 @@
 6. Upload and query documents on ([Vercel Deployment](https://nvidia-rag-chatbot.vercel.app/))
 
 
+## Video Demo on [Youtube](https://www.youtube.com/watch?v=6XuR_fdoAsY&t=6s)
 
